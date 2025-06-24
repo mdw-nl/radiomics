@@ -14,7 +14,7 @@ services:
       - app_network
 
   # Anonymizer app service
-  anonymizer:
+  radiomics:
     build:
       context: .  # Current directory (where the Dockerfile is located)
     container_name: "radiomics"
