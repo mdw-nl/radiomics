@@ -24,6 +24,9 @@ class radiomics_class:
         self.settings = "params.yaml"
         
     def convert_DCM(self):
+        """This method makes from the dcm data nifti data. rtdose and rtplan can be in the folder but will not be used."""
+        
+        # Find the rtsttruct in the dicomdata folder this file will be used to create the nifti data.
         try:
             for file in os.listdir(self.dcm_data):
                 file_path = os.path.join(self.dcm_data, file)
@@ -41,7 +44,8 @@ class radiomics_class:
                 
         except Exception as e:
             logging.error(f"An error occurred finding the RTstruct: {e}", exc_info=True)
-                    
+        
+        # Create the nifti data            
         try:   
             if not os.path.exists(self.nifti_output_folder):
                 os.makedirs(self.nifti_output_folder)
@@ -60,6 +64,8 @@ class radiomics_class:
             logging.error(f"An error occurred during the conversion to nifti in the convert_DCM method: {e}", exc_info=True)
         
     def get_results(self):
+        """Applies the pyradiomics package to the nifti data to get the radiomics results"""    
+    
         try:
             image_path = os.path.join(self.nifti_output_folder, f"{self.image_file}.gz")
             extractor = radiomics.featureextractor.RadiomicsFeatureExtractor(self.settings)
@@ -82,6 +88,8 @@ class radiomics_class:
             logging.error(f"An error occurred trying to get the radiomics results in the get_result method: {e}", exc_info=True)
         
     def save_results(self):
+        """This saves the radiomics results into a csv file. It uses the ID of the patient in the title of the CSV file"""
+        
         try:              
             if not os.path.exists(self.result_folder):
                 os.makedirs(self.result_folder)
@@ -108,6 +116,7 @@ class radiomics_class:
             logging.error(f"An error occurred trying to save the results in the save_results method: {e}", exc_info=True)
     
     def run(self, ch, method, properties, body, executor):
+        """This runs the whole folder from a message to RabbitMQ"""
         try:
             message_data = json.loads(body.decode("utf-8"))
             dicom_folder = message_data.get('input_folder_path')
@@ -132,6 +141,3 @@ if __name__ == '__main__':
     cons.send_message("messages")
     engine = radiomics_class()
     cons.start_consumer(callback=engine.run)
-    # engine.convert_DCM()
-    # engine.get_results()
-    # engine.save_results()
