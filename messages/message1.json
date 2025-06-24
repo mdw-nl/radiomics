@@ -1,5 +1,4 @@
 {
-    "input_folder_path": "./dicomdata",
-    "action": "radiomics",
-    "output_folder_path": "./radiomics_results"
+    "folder_path": "./dicomdata",
+    "action": "radiomics"
   }

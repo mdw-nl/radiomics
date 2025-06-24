@@ -28,8 +28,8 @@ class radiomics_class:
         
         # Find the rtsttruct in the dicomdata folder this file will be used to create the nifti data.
         try:
-            for file in os.listdir(self.dcm_data):
-                file_path = os.path.join(self.dcm_data, file)
+            for file in os.listdir(self.data_folder):
+                file_path = os.path.join(self.data_folder, file)
                 ds = pydicom.dcmread(file_path, stop_before_pixels=True)
                 
                 if ds.Modality == "RTSTRUCT":
@@ -39,7 +39,7 @@ class radiomics_class:
                     break
         
             if not os.path.isfile(self.rtstruct_path):
-                logging.error(f"RTstruct was not found in: {self.dcm_data}")
+                logging.error(f"RTstruct was not found in: {self.data_folder}")
                 sys.exit(1)
                 
         except Exception as e:
@@ -51,7 +51,7 @@ class radiomics_class:
                 os.makedirs(self.nifti_output_folder)
                 
             convert_rtstruct(
-                dcm_img = self.dcm_data,
+                dcm_img = self.data_folder,
                 dcm_rt_file = self.rtstruct_path,
                 output_img = self.image_file,     
                 prefix = 'Mask_',              
@@ -90,14 +90,11 @@ class radiomics_class:
     def save_results(self):
         """This saves the radiomics results into a csv file. It uses the ID of the patient in the title of the CSV file"""
         
-        try:              
-            if not os.path.exists(self.result_folder):
-                os.makedirs(self.result_folder)
-            
+        try:                          
             ds = pydicom.dcmread(self.rtstruct_path, stop_before_pixels=True)
             id = ds.PatientID
             
-            result_path = os.path.join(self.result_folder, f"radiomics_results_{id}")
+            result_path = os.path.join(self.data_folder, f"radiomics_results_{id}.csv")
             
             with open(result_path, 'w', newline='') as csvfile:
                 fieldnames = list(next(iter(self.result_dict.values())).keys())
@@ -119,12 +116,8 @@ class radiomics_class:
         """This runs the whole folder from a message to RabbitMQ"""
         try:
             message_data = json.loads(body.decode("utf-8"))
-            dicom_folder = message_data.get('input_folder_path')
-            output_folder = message_data.get('output_folder_path')
-            
-            self.dcm_data = dicom_folder
-            self.result_folder = output_folder
-            
+            self.data_folder = message_data.get('folder_path')
+
             self.convert_DCM()
             self.get_results()
             self.save_results()
