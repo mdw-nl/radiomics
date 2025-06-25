@@ -128,9 +128,8 @@ class radiomics_class:
             logging.error(f"An error occurred in the run method: {e}", exc_info=True)
         
 if __name__ == '__main__':
-    rabbitMQ_config = Config("rabbitMQ")
+    rabbitMQ_config = Config("rabbitMQradiomics")
     cons = Consumer(rmq_config=rabbitMQ_config)
     cons.open_connection_rmq()
-    cons.send_message("messages")
     engine = radiomics_class()
     cons.start_consumer(callback=engine.run)
