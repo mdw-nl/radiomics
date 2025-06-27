@@ -2,7 +2,7 @@ version: '3'
 services:
   # RabbitMQ service
   rabbitmq:
-    image: "rabbitmq:management"
+    image: "rabbitmq:3-management"
     container_name: "rabbitmq"
     ports:
       - "5672:5672"  # RabbitMQ port for communication
