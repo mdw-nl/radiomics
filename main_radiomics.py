@@ -122,13 +122,13 @@ class radiomics_class:
             self.get_results()
             self.save_results()
 
-            logging.info("Pipeline completed successfully.")
+            logging.info(f"Radiomics succefull.")
 
         except Exception as e:
             logging.error(f"An error occurred in the run method: {e}", exc_info=True)
         
 if __name__ == '__main__':
-    rabbitMQ_config = Config("rabbitMQradiomics")
+    rabbitMQ_config = Config("radiomics")
     cons = Consumer(rmq_config=rabbitMQ_config)
     cons.open_connection_rmq()
     engine = radiomics_class()
