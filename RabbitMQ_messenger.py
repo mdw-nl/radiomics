@@ -42,4 +42,4 @@ class messenger:
         radiomics.open_connection_rmq()
         radiomics.send_message(self.message_folder)
         
-        logging.info(f"Send the messsage in the folder: {output_file_path} to: {queue} ")
+        logging.info(f"Send the data: {data_folder} to: {queue} ")
