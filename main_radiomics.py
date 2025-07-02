@@ -8,6 +8,7 @@ import sys
 from config_handler import Config
 from consumer import Consumer
 import json
+from RabbitMQ_messenger import messenger
 
 
 logging.basicConfig(
@@ -23,13 +24,13 @@ class radiomics_class:
         self.image_file = 'image.nii'
         self.settings = "Params.yaml"
         
-    def convert_DCM(self):
+    def convert_DCM(self, data_folder):
         """This method makes from the dcm data nifti data. rtdose and rtplan can be in the folder but will not be used."""
         
         # Find the rtsttruct in the dicomdata folder this file will be used to create the nifti data.
         try:
-            for file in os.listdir(self.data_folder):
-                file_path = os.path.join(self.data_folder, file)
+            for file in os.listdir(data_folder):
+                file_path = os.path.join(data_folder, file)
                 ds = pydicom.dcmread(file_path, stop_before_pixels=True)
                 
                 if ds.Modality == "RTSTRUCT":
@@ -39,7 +40,7 @@ class radiomics_class:
                     break
         
             if not os.path.isfile(self.rtstruct_path):
-                logging.error(f"RTstruct was not found in: {self.data_folder}")
+                logging.error(f"RTstruct was not found in: {data_folder}")
                 sys.exit(1)
                 
         except Exception as e:
@@ -51,7 +52,7 @@ class radiomics_class:
                 os.makedirs(self.nifti_output_folder)
                 
             convert_rtstruct(
-                dcm_img = self.data_folder,
+                dcm_img = data_folder,
                 dcm_rt_file = self.rtstruct_path,
                 output_img = self.image_file,     
                 prefix = 'Mask_',              
@@ -87,14 +88,14 @@ class radiomics_class:
         except Exception as e:
             logging.error(f"An error occurred trying to get the radiomics results in the get_result method: {e}", exc_info=True)
         
-    def save_results(self):
+    def save_results(self, data_folder):
         """This saves the radiomics results into a csv file. It uses the ID of the patient in the title of the CSV file"""
         
         try:                          
             ds = pydicom.dcmread(self.rtstruct_path, stop_before_pixels=True)
             id = ds.PatientID
             
-            result_path = os.path.join(self.data_folder, f"radiomics_results_{id}.csv")
+            result_path = os.path.join(data_folder, f"radiomics_results_{id}.csv")
             
             with open(result_path, 'w', newline='') as csvfile:
                 fieldnames = list(next(iter(self.result_dict.values())).keys())
@@ -111,18 +112,24 @@ class radiomics_class:
             
         except Exception as e:
             logging.error(f"An error occurred trying to save the results in the save_results method: {e}", exc_info=True)
+            
+    def send_next_queue(self, queue, data_folder):
+        message_creator = messenger()
+        message_creator.create_message_next_queue(queue, data_folder)
     
     def run(self, ch, method, properties, body, executor):
         """This runs the whole folder from a message to RabbitMQ"""
         try:
             message_data = json.loads(body.decode("utf-8"))
-            self.data_folder = message_data.get('folder_path')
+            data_folder = message_data.get('folder_path')
 
-            self.convert_DCM()
+            self.convert_DCM(data_folder)
             self.get_results()
-            self.save_results()
+            self.save_results(data_folder)
 
             logging.info(f"Radiomics succefull.")
+            
+            self.send_next_queue(Config("anonymizer")["send_queue"], data_folder)
 
         except Exception as e:
             logging.error(f"An error occurred in the run method: {e}", exc_info=True)
