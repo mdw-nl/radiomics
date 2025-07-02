@@ -129,7 +129,7 @@ class radiomics_class:
 
             logging.info(f"Radiomics succefull.")
             
-            self.send_next_queue(Config("anonymizer")["send_queue"], data_folder)
+            self.send_next_queue(Config("radiomics")["send_queue"], data_folder)
 
         except Exception as e:
             logging.error(f"An error occurred in the run method: {e}", exc_info=True)
