@@ -130,6 +130,7 @@ class radiomics_class:
             logging.info(f"Radiomics succefull.")
             
             self.send_next_queue(Config("radiomics")["send_queue"], data_folder)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
         except Exception as e:
             logging.error(f"An error occurred in the run method: {e}", exc_info=True)
