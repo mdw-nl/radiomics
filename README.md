@@ -9,3 +9,5 @@ Important Notes:
 
 Radiomics extraction is done using default PyRadiomics parameters; adjust the settings in the params.yaml file to get the desired settings. For more information about this go to this 
 webpage: https://pyradiomics.readthedocs.io/en/latest/index.html or go to the Github repository.
+
+If you want to use this script as seperate script so not in the DIGIONE pipeline then self.settings = "/app/radiomics_settings/Params.yaml" should be changed to self.settings = "Params.yaml"
