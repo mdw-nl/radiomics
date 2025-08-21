@@ -117,10 +117,13 @@ class radiomics_class:
     
     def run(self, ch, method, properties, body, executor):
         """This runs the whole folder from a message to RabbitMQ"""
-        try:
-            message_data = json.loads(body.decode("utf-8"))
-            data_folder = message_data.get('folder_path')
+        
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        
+        message_data = json.loads(body.decode("utf-8"))
+        data_folder = message_data.get('folder_path')
 
+        try:
             self.convert_DCM(data_folder)
             self.get_results()
             self.save_results(data_folder)
@@ -128,7 +131,6 @@ class radiomics_class:
             logging.info(f"Radiomics succefull.")
             
             self.send_next_queue(Config("radiomics")["send_queue"], data_folder)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
 
         except Exception as e:
             logging.error(f"An error occurred in the run method: {e}", exc_info=True)
