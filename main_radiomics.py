@@ -1,6 +1,7 @@
 import radiomics
 from platipy.dicom.io.rtstruct_to_nifti import convert_rtstruct
 import os
+import json
 import csv
 import logging
 import pydicom
@@ -23,7 +24,7 @@ class radiomics_class:
         self.nifti_output_folder = "niftidata"
         self.image_file = 'image.nii'
         self.settings = "/app/radiomics_settings/Params.yaml"
-        
+    
     def convert_DCM(self, data_folder):
         """This method makes from the dcm data nifti data. rtdose and rtplan can be in the folder but will not be used."""
         logging.info("Converting dicom to nifti...")
@@ -86,10 +87,25 @@ class radiomics_class:
             
         except Exception as e:
             logging.error(f"An error occurred trying to get the radiomics results in the get_result method: {e}", exc_info=True)
-        
+
+    def clear_output_folder(self, folder_path):
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+            logger.warning(f"Output folder created: {folder_path}")
+            return
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                
+        logging.info(f"Removed the files in {folder_path}")
+
     def save_results(self, data_folder):
         """This saves the radiomics results into a csv file. It uses the ID of the patient in the title of the CSV file"""
         logging.info("Saving the radiomics results...")
+        
+        # Check if the output folder exists and empty it
+        self.clear_output_folder(data_folder)
         
         try:                          
             ds = pydicom.dcmread(self.rtstruct_path, stop_before_pixels=True)
@@ -110,7 +126,22 @@ class radiomics_class:
             
         except Exception as e:
             logging.error(f"An error occurred trying to save the results in the save_results method: {e}", exc_info=True)
-            
+    
+    def create_json_metadata(self, data_folder):
+        ds = pydicom.dcmread(self.rtstruct_path, stop_before_pixels=True)
+    
+        info_dict = {
+            "BodyPartExamined": str(ds.BodyPartExamined),
+            "PatientName": str(ds.PatientName),
+            "PatientID": str(ds.PatientID)
+        }
+    
+        info_path = os.path.join(data_folder, "metadata_xnat_csv.json")
+        with open(info_path, "w") as f:
+            json.dump(info_dict, f, indent=4)
+        
+        logging.info(f"Metadata saved to {info_path}")
+        
     def send_next_queue(self, queue, data_folder):
         message_creator = messenger()
         message_creator.create_message_next_queue(queue, data_folder)
@@ -122,11 +153,13 @@ class radiomics_class:
         
         message_data = json.loads(body.decode("utf-8"))
         data_folder = message_data.get('folder_path')
+        output_folder_path = os.path.join(os.path.dirname(data_folder), "radiomics_data")
 
         try:
             self.convert_DCM(data_folder)
             self.get_results()
-            self.save_results(data_folder)
+            self.save_results(output_folder_path)
+            self.create_json_metadata(output_folder_path)
 
             logging.info(f"Radiomics succefull.")
             
