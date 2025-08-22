@@ -167,7 +167,7 @@ class radiomics_class:
             logging.error(f"An error occurred in the run method: {e}", exc_info=True)
         
         if Config("radiomics")["send_queue"] != None:
-            self.send_next_queue(Config("radiomics")["send_queue"], data_folder)
+            self.send_next_queue(Config("radiomics")["send_queue"], output_folder_path)
 
 if __name__ == '__main__':
     rabbitMQ_config = Config("radiomics")
