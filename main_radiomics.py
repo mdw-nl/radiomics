@@ -153,7 +153,7 @@ class radiomics_class:
         
         message_data = json.loads(body.decode("utf-8"))
         data_folder = message_data.get('folder_path')
-        output_folder_path = os.path.join(os.path.dirname(data_folder), "radiomics_data")
+        output_folder_path = os.path.join(data_folder, "radiomics_data")
 
         try:
             self.convert_DCM(data_folder)
