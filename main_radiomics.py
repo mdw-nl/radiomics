@@ -23,7 +23,7 @@ class radiomics_class:
     def __init__(self):        
         self.nifti_output_folder = "niftidata"
         self.image_file = 'image.nii'
-        self.settings = "/app/radiomics_settings/Params.yaml"
+        self.settings = "/radiomics_settings/Params.yaml"
     
     def convert_DCM(self, data_folder):
         """This method makes from the dcm data nifti data. rtdose and rtplan can be in the folder but will not be used."""
