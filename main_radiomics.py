@@ -131,9 +131,9 @@ class radiomics_class:
         ds = pydicom.dcmread(self.rtstruct_path, stop_before_pixels=True)
     
         info_dict = {
-            "BodyPartExamined": str(ds.BodyPartExamined),
-            "PatientName": str(ds.PatientName),
-            "PatientID": str(ds.PatientID)
+            "project": str(ds.BodyPartExamined),
+            "subject": str(ds.PatientName),
+            "experiment": str(ds.PatientID)
         }
     
         info_path = os.path.join(data_folder, "metadata_xnat_csv.json")
