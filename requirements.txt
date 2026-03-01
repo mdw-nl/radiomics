@@ -3,3 +3,4 @@ pyradiomics
 platipy
 PyYAML
 pika
+psycopg2-binary

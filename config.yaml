@@ -3,4 +3,4 @@ radiomics:
   port: "5672"
   username: "guest"
   password: "guest"
-  queue_name: "DICOM_Processor"
+  queue_name: "radiomics"
