@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY radiomics/ .
 
-CMD ["python", "main_radiomics.py"]
+CMD ["python", "main.py"]
