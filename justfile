@@ -41,6 +41,29 @@ clean-build:
     docker compose down -v
     docker compose up -d --build
 
+# Install dev + test dependencies (includes pyradiomics and platipy)
+install-test:
+    uv sync --group test
+
+# Run integration tests against real DICOM data
+# Usage: just integration-test /path/to/dicom
+#        just integration-test /path/to/dicom /path/to/output
+integration-test dicom_folder output_dir="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    extra=""
+    if [ -n "{{output_dir}}" ]; then extra="--output-dir {{output_dir}}"; fi
+    uv run --group test pytest tests/integration/ -v -s \
+        --dicom-folder "{{dicom_folder}}" $extra
+
+# Run standalone pipeline script without pytest
+# Usage: just run-pipeline /path/to/dicom
+#        just run-pipeline /path/to/dicom ./results
+run-pipeline dicom_folder output_dir="./radiomics_results":
+    uv run --group test python run_integration.py \
+        --dicom-folder "{{dicom_folder}}" \
+        --output-dir "{{output_dir}}"
+
 # Stash changes and checkout branch
 checkout branch:
     git stash

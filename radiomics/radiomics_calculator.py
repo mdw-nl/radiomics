@@ -11,6 +11,7 @@ import pydicom
 from platipy.dicom.io.rtstruct_to_nifti import convert_rtstruct
 
 import radiomics
+import radiomics.featureextractor
 
 logger = logging.getLogger(__name__)
 
@@ -102,20 +103,25 @@ class RadiomicsCalculator:
         except Exception:
             logger.exception("An error occurred during NIfTI conversion.")
 
+    def list_roi_masks(self):
+        """Return all NIfTI mask files in the output folder (everything except the image)."""
+        image_path = Path(self.nifti_output_folder) / f"{self.image_file}.gz"
+        return [p for p in Path(self.nifti_output_folder).iterdir() if p.is_file() and p != image_path]
+
+    def calculate_single_roi(self, mask_path):
+        """Extract radiomics features for a single ROI mask. Returns the features dict."""
+        image_path = Path(self.nifti_output_folder) / f"{self.image_file}.gz"
+        logger.info("Calculating features for ROI: %s", Path(mask_path).name)
+        extractor = radiomics.featureextractor.RadiomicsFeatureExtractor(self.settings)
+        return extractor.execute(str(image_path), str(mask_path))
+
     def calculate_features(self):
         """Run pyradiomics feature extraction on NIfTI data."""
         logger.info("Calculating radiomics features...")
         try:
-            image_path = Path(self.nifti_output_folder) / f"{self.image_file}.gz"
-            extractor = radiomics.featureextractor.RadiomicsFeatureExtractor(self.settings)
             self.result_dict = {}
-
-            for file_path in Path(self.nifti_output_folder).iterdir():
-                if file_path == image_path:
-                    continue
-                result = extractor.execute(image_path, file_path)
-                self.result_dict[file_path.name] = result
-
+            for mask_path in self.list_roi_masks():
+                self.result_dict[mask_path.name] = self.calculate_single_roi(mask_path)
             logger.info("All radiomics features calculated.")
 
         except Exception:

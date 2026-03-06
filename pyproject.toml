@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Radiomics pipeline consumer"
 requires-python = ">=3.10,<3.12"
 dependencies = [
-    "numpy<2.0.0",
+    "numpy",
     "pyyaml",
     "pika",
     "psycopg2-binary",
@@ -86,6 +86,9 @@ known-first-party = ["radiomics"]
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
 [tool.ruff.lint.flake8-type-checking]
 strict = true
 
@@ -109,8 +112,20 @@ call-non-callable = "warn"
 unknown-argument = "warn"
 unresolved-attribute = "warn"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests requiring real DICOM data",
+]
+
 [dependency-groups]
 dev = [
-    "pre-commit>=4.5.1",
     "ty>=0.0.20",
+    "pytest>=8.0",
+    "pre-commit>=4.5.1",
+]
+test = [
+    { include-group = "dev" },
+    "pyradiomics @ git+https://github.com/AIM-Harvard/pyradiomics.git",
+    "platipy",
 ]
