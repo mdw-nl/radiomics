@@ -1,19 +1,24 @@
-import radiomics
-from platipy.dicom.io.rtstruct_to_nifti import convert_rtstruct
-import os
 import csv
+import io
 import logging
-import pydicom
-import sys
+import os
 import shutil
+import sys
 import time
+from pathlib import Path
+
+import pydicom
+from platipy.dicom.io.rtstruct_to_nifti import convert_rtstruct
+
+import radiomics
 
 logger = logging.getLogger(__name__)
 
 
 class RadiomicsCalculator:
-    def __init__(self, nifti_output_folder="niftidata", image_file="image.nii",
-                 settings="/radiomics_settings/Params.yaml"):
+    def __init__(
+        self, nifti_output_folder="niftidata", image_file="image.nii", settings="/radiomics_settings/Params.yaml"
+    ):
         self.nifti_output_folder = nifti_output_folder
         self.image_file = image_file
         self.settings = settings
@@ -26,53 +31,54 @@ class RadiomicsCalculator:
         self.rtstruct_path = None
         self.ct_folder = None
         self.result_dict = {}
-        if os.path.exists(self.nifti_output_folder):
+        if Path(self.nifti_output_folder).exists():
             shutil.rmtree(self.nifti_output_folder)
-            logging.info("Cleared niftidata folder from previous run.")
+            logger.info("Cleared niftidata folder from previous run.")
 
     def find_dicom_files(self, data_folder):
         """Walk data folder and find RTSTRUCT and CT folder."""
-        logging.info("Searching for DICOM files...")
+        logger.info("Searching for DICOM files...")
         try:
-            for root, dirs, files in os.walk(data_folder):
+            for root, _dirs, files in os.walk(data_folder):
                 for file in files:
-                    file_path = os.path.join(root, file)
+                    file_path = Path(root) / file
                     try:
                         ds = pydicom.dcmread(file_path, stop_before_pixels=True, force=True)
                     except Exception:
-                        logging.debug(f"Skipping unreadable file: {file_path}")
+                        logger.debug("Skipping unreadable file: %s", file_path)
                         continue
 
-                    if not hasattr(ds, 'Modality'):
-                        logging.debug(f"Skipping file without Modality tag: {file_path}")
+                    if not hasattr(ds, "Modality"):
+                        logger.debug("Skipping file without Modality tag: %s", file_path)
                         continue
 
                     if ds.Modality == "RTSTRUCT":
                         self.rtstruct_path = file_path
-                        logging.info(f"RTstruct found at {self.rtstruct_path}")
+                        logger.info("RTstruct found at %s", self.rtstruct_path)
                     elif ds.Modality == "CT" and self.ct_folder is None:
                         self.ct_folder = root
-                        logging.info(f"CT folder found at: {self.ct_folder}")
+                        logger.info("CT folder found at: %s", self.ct_folder)
 
                 if self.rtstruct_path and self.ct_folder:
                     break
 
-            if not self.rtstruct_path or not os.path.isfile(self.rtstruct_path):
-                logging.error(f"RTstruct was not found in: {data_folder}")
+            if not self.rtstruct_path or not Path(self.rtstruct_path).is_file():
+                logger.error("RTstruct was not found in: %s", data_folder)
                 sys.exit(1)
             if not self.ct_folder:
-                logging.error(f"CT folder was not found in: {data_folder}")
+                logger.error("CT folder was not found in: %s", data_folder)
                 sys.exit(1)
 
-        except Exception as e:
-            logging.error(f"An error occurred finding DICOM files: {e}", exc_info=True)
+        except Exception:
+            logger.exception("An error occurred finding DICOM files.")
 
     def convert_to_nifti(self, retries=3, delay=10):
         """Convert DICOM CT and RTSTRUCT to NIfTI format."""
-        logging.info("Converting DICOM to NIfTI...")
+        logger.info("Converting DICOM to NIfTI...")
         try:
-            if not os.path.exists(self.nifti_output_folder):
-                os.makedirs(self.nifti_output_folder)
+            nifti_path = Path(self.nifti_output_folder)
+            if not nifti_path.exists():
+                nifti_path.mkdir(parents=True)
 
             for attempt in range(retries):
                 try:
@@ -80,56 +86,55 @@ class RadiomicsCalculator:
                         dcm_img=self.ct_folder,
                         dcm_rt_file=self.rtstruct_path,
                         output_img=self.image_file,
-                        prefix='Mask_',
-                        output_dir=self.nifti_output_folder
+                        prefix="Mask_",
+                        output_dir=self.nifti_output_folder,
                     )
-                    logging.info("Conversion to NIfTI complete.")
+                    logger.info("Conversion to NIfTI complete.")
                     return
                 except Exception as e:
-                    logging.warning(f"Conversion attempt {attempt + 1} failed: {e}")
+                    logger.warning("Conversion attempt %s failed: %s", attempt + 1, e)
                     if attempt < retries - 1:
-                        logging.info(f"Retrying in {delay} seconds...")
+                        logger.info("Retrying in %s seconds...", delay)
                         time.sleep(delay)
                     else:
                         raise
 
-        except Exception as e:
-            logging.error(f"An error occurred during NIfTI conversion: {e}", exc_info=True)
+        except Exception:
+            logger.exception("An error occurred during NIfTI conversion.")
 
     def calculate_features(self):
         """Run pyradiomics feature extraction on NIfTI data."""
-        logging.info("Calculating radiomics features...")
+        logger.info("Calculating radiomics features...")
         try:
-            image_path = os.path.join(self.nifti_output_folder, f"{self.image_file}.gz")
+            image_path = Path(self.nifti_output_folder) / f"{self.image_file}.gz"
             extractor = radiomics.featureextractor.RadiomicsFeatureExtractor(self.settings)
             self.result_dict = {}
 
-            for file in os.listdir(self.nifti_output_folder):
-                file_path = os.path.join(self.nifti_output_folder, file)
+            for file_path in Path(self.nifti_output_folder).iterdir():
                 if file_path == image_path:
                     continue
                 result = extractor.execute(image_path, file_path)
-                self.result_dict[file] = result
+                self.result_dict[file_path.name] = result
 
-            logging.info("All radiomics features calculated.")
+            logger.info("All radiomics features calculated.")
 
-        except Exception as e:
-            logging.error(f"An error occurred calculating radiomics features: {e}", exc_info=True)
+        except Exception:
+            logger.exception("An error occurred calculating radiomics features.")
 
     def get_csv_and_metadata(self):
         """Build CSV and metadata in memory."""
         ds_rtstruct = pydicom.dcmread(self.rtstruct_path, stop_before_pixels=True)
         patient_id = ds_rtstruct.PatientID
 
-        ct_file = os.path.join(self.ct_folder, os.listdir(self.ct_folder)[0])
+        ct_file = next(Path(self.ct_folder).iterdir())
         ds_ct = pydicom.dcmread(ct_file, stop_before_pixels=True)
 
-        output = csv.StringIO()
+        output = io.StringIO()
         fieldnames = list(next(iter(self.result_dict.values())).keys())
-        writer = csv.DictWriter(output, fieldnames=['id'] + fieldnames)
+        writer = csv.DictWriter(output, fieldnames=["id", *fieldnames])
         writer.writeheader()
         for key, od in self.result_dict.items():
-            row = {'id': key}
+            row = {"id": key}
             row.update(od)
             writer.writerow(row)
         csv_content = output.getvalue()
@@ -138,9 +143,9 @@ class RadiomicsCalculator:
         metadata = {
             "project": str(ds_ct.get("BodyPartExamined", "UNKNOWN")),
             "subject": str(ds_rtstruct.PatientID),
-            "experiment": study_uid_label
+            "experiment": study_uid_label,
         }
-        logging.info(f"PatientName: {ds_rtstruct.PatientName}, PatientID: {ds_rtstruct.PatientID}")
+        logger.info("PatientName: %s, PatientID: %s", ds_rtstruct.PatientName, ds_rtstruct.PatientID)
 
         filename = f"radiomics_results_{patient_id}.csv"
         return csv_content, metadata, filename
