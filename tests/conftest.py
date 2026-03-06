@@ -47,6 +47,11 @@ def pytest_addoption(parser):
         default=str(PARAMS_DEFAULT),
         help=f"Path to PyRadiomics Params.yaml settings file (default: {PARAMS_DEFAULT})",
     )
+    parser.addoption("--pg-host", action="store", default=None, help="PostgreSQL host (or PG_HOST env var)")
+    parser.addoption("--pg-port", action="store", default=None, help="PostgreSQL port (or PG_PORT env var)")
+    parser.addoption("--pg-user", action="store", default=None, help="PostgreSQL user (or PG_USER env var)")
+    parser.addoption("--pg-password", action="store", default=None, help="PostgreSQL password (or PG_PASSWORD env var)")
+    parser.addoption("--pg-database", action="store", default=None, help="PostgreSQL database (or PG_DATABASE env var)")
 
 
 def pytest_sessionstart(session):
@@ -109,6 +114,29 @@ def pipeline_result(output_dir):
     calc.calculate_features()
     csv_content, metadata, filename = calc.get_csv_and_metadata()
     return csv_content, metadata, filename, output_dir
+
+
+@pytest.fixture(scope="session")
+def postgres_interface(request):
+    from PostgresInterface import PostgresInterface  # noqa: PLC0415
+
+    def opt(name, env):
+        return request.config.getoption(name) or os.environ.get(env)
+
+    host = opt("--pg-host", "PG_HOST")
+    if not host:
+        pytest.skip("No PostgreSQL host provided. Use --pg-host or set PG_HOST.")
+
+    pg = PostgresInterface(
+        host=host,
+        port=int(opt("--pg-port", "PG_PORT") or 5432),
+        database=opt("--pg-database", "PG_DATABASE") or "postgres",
+        user=opt("--pg-user", "PG_USER") or "postgres",
+        password=opt("--pg-password", "PG_PASSWORD") or "postgres",
+    )
+    pg.connect()
+    yield pg
+    pg.disconnect()
 
 
 @pytest.fixture

@@ -24,6 +24,7 @@ so results appear incrementally rather than waiting for the full pipeline to fin
 import csv
 import io
 import logging
+from datetime import datetime
 
 import pytest
 
@@ -149,3 +150,52 @@ class TestPerROIResult:
         assert "." not in metadata["experiment"], (
             "experiment (StudyInstanceUID) should have dots replaced with underscores"
         )
+
+
+@pytest.mark.integration
+class TestPostgresOutput:
+    """Verify that pipeline results can be written to and read back from PostgreSQL.
+
+    Requires a running PostgreSQL instance. Supply connection details via CLI flags
+    or environment variables:
+
+        just integration-test /path/to/dicom --pg-host localhost
+        PG_HOST=localhost pytest tests/integration/ -v -s --dicom-folder /path/to/dicom
+    """
+
+    TABLE = "calculation_status"
+
+    def _ensure_table(self, pg):
+        pg.create_table(self.TABLE, {"study_uid": "TEXT", "status": "TEXT", "timestamp": "TIMESTAMPTZ"})
+
+    def test_can_connect(self, postgres_interface):
+        result = postgres_interface.fetch_one("SELECT 1")
+        assert result == (1,), "Basic connectivity check failed"
+
+    def test_table_can_be_created(self, postgres_interface):
+        self._ensure_table(postgres_interface)
+        assert postgres_interface.check_table_exists(self.TABLE)
+
+    def test_can_insert_pipeline_result(self, postgres_interface, pipeline_result):
+        _, metadata, _, _ = pipeline_result
+        self._ensure_table(postgres_interface)
+        postgres_interface.insert(
+            self.TABLE,
+            {"study_uid": metadata["experiment"], "status": "completed", "timestamp": datetime.now()},
+        )
+        row = postgres_interface.fetch_one(
+            f"SELECT study_uid, status FROM {self.TABLE} WHERE study_uid = %s",
+            (metadata["experiment"],),
+        )
+        assert row is not None, "Inserted row not found"
+        assert row[0] == metadata["experiment"]
+        assert row[1] == "completed"
+
+    def test_cleanup(self, postgres_interface, pipeline_result):
+        _, metadata, _, _ = pipeline_result
+        postgres_interface.delete(self.TABLE, {"study_uid": metadata["experiment"]})
+        row = postgres_interface.fetch_one(
+            f"SELECT 1 FROM {self.TABLE} WHERE study_uid = %s",
+            (metadata["experiment"],),
+        )
+        assert row is None, "Row was not deleted"
