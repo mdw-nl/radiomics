@@ -16,3 +16,6 @@ XNAT_USERNAME = "admin"
 XNAT_PASSWORD = "admin"
 
 QUERY_PATIENT = """SELECT * FROM public.dicom_insert WHERE patient_id = %s;"""
+
+SEND_XNAT = False
+SEND_POSTGRESS = True

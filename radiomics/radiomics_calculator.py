@@ -55,6 +55,7 @@ class RadiomicsCalculator:
 
                     if ds.Modality == "RTSTRUCT":
                         self.rtstruct_path = file_path
+                        self.rtstruct_instance = ds.SOPInstanceUID
                         logger.info("RTstruct found at %s", self.rtstruct_path)
                     elif ds.Modality == "CT" and self.ct_folder is None:
                         self.ct_folder = root
@@ -150,6 +151,7 @@ class RadiomicsCalculator:
             "project": str(ds_ct.get("BodyPartExamined", "UNKNOWN")),
             "subject": str(ds_rtstruct.PatientID),
             "experiment": study_uid_label,
+            "sop_instance_uid": self.rtstruct_instance
         }
         logger.info("PatientName: %s, PatientID: %s", ds_rtstruct.PatientName, ds_rtstruct.PatientID)
 

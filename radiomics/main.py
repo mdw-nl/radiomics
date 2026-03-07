@@ -3,10 +3,11 @@ from pathlib import Path
 
 from config_handler import Config
 from consumer import Consumer
-from global_var import QUERY_UID
+from global_var import QUERY_UID, SEND_XNAT, SEND_POSTGRESS
 from PostgresInterface import PostgresInterface
 from radiomics_calculator import RadiomicsCalculator
 from xnat_sender import SendDICOM
+from radiomics_results_postgress import setup_radiomics_db, send_postgress
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler()]
@@ -38,6 +39,8 @@ class RadiomicsPipeline:
         self.db = connect_db()
         self.calculator = RadiomicsCalculator()
         self.xnat_sender = SendDICOM()
+        postgres_db = setup_radiomics_db()
+        postgres_db.run(self.db)
 
     def get_folder_from_db(self, study_uid):
         """Retrieve the study folder path from the database using the study UID."""
@@ -61,7 +64,12 @@ class RadiomicsPipeline:
 
         try:
             csv_content, metadata, filename = self.calculator.run(data_folder)
-            self.xnat_sender.upload_to_xnat(csv_content, metadata, filename)
+            
+            if SEND_POSTGRESS == True:
+                send_postgress(self.db, csv_content, metadata)
+            
+            if SEND_XNAT == True:
+                self.xnat_sender.upload_to_xnat(csv_content, metadata, filename)
             logger.info("Radiomics pipeline completed successfully.")
 
         except Exception:

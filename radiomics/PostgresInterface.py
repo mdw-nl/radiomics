@@ -52,6 +52,7 @@ class PostgresInterface:
         except Exception as e:
             self.conn.rollback()  # Rollback in case of error
             logger.warning("Error executing query: %s", e)
+            raise
 
     def fetch_all(self, query, params=None):
         """Fetch all results from a SELECT query."""
@@ -78,11 +79,14 @@ class PostgresInterface:
         self.execute_query(query)
 
     def insert(self, table_name, data):
-        """Insert a new row into a table."""
-        columns = ", ".join(data.keys())
-        values = ", ".join(["%s"] * len(data))
-        query = f"INSERT INTO {table_name} ({columns}) VALUES ({values})"
-        self.execute_query(query, tuple(data.values()))
+        if not data:
+            raise ValueError("No data provided for insert.")
+        columns = list(data.keys())
+        values = [data[col] for col in columns]  # ensures order matches columns
+        columns_sql = ", ".join(columns)
+        placeholders = ", ".join(["%s"] * len(columns))
+        query = f"INSERT INTO {table_name} ({columns_sql}) VALUES ({placeholders})"
+        self.execute_query(query, tuple(values))
 
     def update(self, table_name, data, where_conditions):
         """Update a row in a table."""

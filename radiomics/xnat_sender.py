@@ -48,7 +48,7 @@ class SendDICOM:
             )
 
             if response.status_code in [200, 201]:
-                logger.info("Uploaded %s successfully.", filename)
+                logger.info("Uploaded %s successfully to XNAT.", filename)
             else:
                 logger.error("Failed to upload %s. Status %s: %s", filename, response.status_code, response.text)
 
